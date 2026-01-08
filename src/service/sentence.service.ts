@@ -12,11 +12,12 @@ export const fetchLatestSentence = async () => {
 
   const sentenceData = sentence.toObject();
 
-  const newDate = new Date(sentenceData.date);
+  const dateObj = new Date(sentenceData.date);
 
-  const year = String(newDate.getFullYear()).slice(2);
-  const month = String(newDate.getMonth() + 1).padStart(2, "0");
-  const day = String(newDate.getDate()).padStart(2, "0");
+  // UTC 기준으로 날짜 포맷팅 (서버 타임존 영향 없이 DB 저장된 날짜 그대로 사용)
+  const year = String(dateObj.getUTCFullYear()).slice(2);
+  const month = String(dateObj.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(dateObj.getUTCDate()).padStart(2, "0");
 
   const dayFormatted = `${year}.${month}.${day}`;
 
