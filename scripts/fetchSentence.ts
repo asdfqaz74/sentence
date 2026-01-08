@@ -20,7 +20,7 @@ async function fetchSentences(): Promise<void> {
 
     // 2. Call OpenAI API
     const prompt = `
-      Please generate 10 unique English sentences with their Korean translations.
+      Please generate 5 unique English sentences with their Korean translations.
       For each sentence, also select 2 key words and provide their translations.
       Return the result strictly as a JSON object with a "definitions" key containing the array.
       
