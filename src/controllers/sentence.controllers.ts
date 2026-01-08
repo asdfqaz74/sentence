@@ -11,7 +11,7 @@ export const getLatestSentenceController = async (
 
     res.status(200).json({
       success: true,
-      message: `${dayFormatted}일자 최신 문장 10개를 불러왔습니다.`,
+      message: `${dayFormatted}일자 최신 문장 5개를 불러왔습니다.`,
       data: sentenceData,
     });
   } catch (error: any) {
