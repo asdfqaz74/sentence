@@ -1,21 +1,22 @@
+import { Request, Response } from "express";
 import { fetchLatestSentence } from "../service/sentence.service";
-import connectDB from "../config/db";
 
-(async () => {
+export const getLatestSentenceController = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    console.log("⏰ 패치를 시작합니다...");
-
-    await connectDB();
-
+    // service에서 받아온 객체에서 dayFormatted와 나머지 데이터를 분리합니다.
     const { dayFormatted, ...sentenceData } = await fetchLatestSentence();
 
-    console.log(`✅ ${dayFormatted} 문장 5개를 불러왔습니다.`, {
-      count: sentenceData.sentence?.length,
+    res.status(200).json({
+      success: true,
+      message: `${dayFormatted}일자 최신 문장 5개를 불러왔습니다.`,
+      data: sentenceData,
     });
-
-    process.exit(0);
-  } catch (error) {
-    console.error("❌ 패치에 실패했습니다.", error);
-    process.exit(1);
+  } catch (error: any) {
+    res
+      .status(500)
+      .json({ success: false, message: "서버 오류가 발생했습니다." });
   }
-})();
+};

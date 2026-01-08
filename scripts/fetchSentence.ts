@@ -9,37 +9,84 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// 한국 시간 타임스탬프 생성
+const getKSTTimestamp = (): string => {
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().replace("T", " ").substring(0, 19);
+};
+
+// 로그 출력 함수
+const log = (message: string): void => {
+  console.log(`[${getKSTTimestamp()}] ${message}`);
+};
+
+const logError = (message: string, error?: unknown): void => {
+  console.error(`[${getKSTTimestamp()}] ❌ ${message}`);
+  if (error) console.error(error);
+};
+
 async function fetchSentences(): Promise<void> {
+  const startTime = Date.now();
+  log("🚀 문장 생성 스크립트 시작");
+
   try {
-    // 1. Connect to MongoDB
+    // 1. 환경 변수 검증
     if (!process.env.MONGO_URI) {
-      throw new Error("MONGO_URI is not defined in .env file");
+      throw new Error("MONGO_URI가 .env 파일에 정의되지 않았습니다");
     }
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY가 .env 파일에 정의되지 않았습니다");
+    }
+
+    // 2. MongoDB 연결
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("MongoDB 연결됨");
+    log("✅ MongoDB 연결됨");
 
-    // 2. Call OpenAI API
+    // 3. OpenAI API 호출
     const prompt = `
-      Please generate 5 unique English sentences with their Korean translations.
-      For each sentence, also select 2 key words and provide their translations.
-      Return the result strictly as a JSON object with a "definitions" key containing the array.
-      
-      The format should be exactly like this example:
-      {
-        "definitions": [
-          {
-            "ko": "저 공룡은 엄청나게 커!",
-            "en": "That dinosaur is ginormous!",
-            "words": [
-              { "en": "dinosaur", "ko": "공룡" },
-              { "en": "ginormous", "ko": "엄청나게 큰" }
-            ]
-          }
-        ]
-      }
-    `;
+You are an English tutor who understands natural, real-life spoken English used by native speakers.
 
-    console.log("OpenAI 데이터 요청 중...");
+Please generate 5 unique English sentences for daily English practice, following ALL of the rules below:
+
+1. Difficulty level must be CEFR B1–B2.
+2. Sentences must sound natural and be immediately usable in everyday conversation.
+3. Each sentence must include at least one commonly used, essential spoken expression or core vocabulary item.
+4. Grammar usage must vary across the 5 sentences, such as:
+   - different tenses
+   - modal verbs
+   - conditionals
+   - comparisons
+   - cause-and-effect expressions
+   - opinions or preferences
+5. Avoid textbook-style language. Use the tone, rhythm, and phrasing that native speakers actually use.
+6. Focus on real-life situations such as travel, daily life, work, relationships, and emotional expression.
+7. The overall goal is that consistent study of these sentences enables clear self-expression abroad.
+
+For EACH sentence:
+- Provide a natural Korean translation.
+- Select exactly 2 key words or expressions that are essential in real conversation.
+- Provide Korean translations for those key words.
+
+Return the result STRICTLY as a JSON object with a "definitions" key containing an array.
+
+The format MUST be exactly like the example below (no extra text):
+
+{
+  "definitions": [
+    {
+      "ko": "저 공룡은 엄청나게 커!",
+      "en": "That dinosaur is ginormous!",
+      "words": [
+        { "en": "dinosaur", "ko": "공룡" },
+        { "en": "ginormous", "ko": "엄청나게 큰" }
+      ]
+    }
+  ]
+}
+`;
+
+    log("📡 OpenAI API 요청 중...");
     const completion = await openai.chat.completions.create({
       model: "gpt-5.1",
       messages: [{ role: "user", content: prompt }],
@@ -49,25 +96,33 @@ async function fetchSentences(): Promise<void> {
 
     const content = completion.choices[0].message?.content;
     if (!content) {
-      throw new Error("No content returned from OpenAI");
+      throw new Error("OpenAI로부터 응답을 받지 못했습니다");
     }
 
     const parsedData = JSON.parse(content);
     const sentencesData = parsedData.definitions;
 
-    console.log(`${sentencesData.length}개의 문장을 수신함`);
+    if (!sentencesData || sentencesData.length === 0) {
+      throw new Error("생성된 문장이 없습니다");
+    }
 
-    // 3. Save to MongoDB
-    // model 스키마에 맞춰서 { sentence: [...] } 형태로 저장
+    log(`✅ ${sentencesData.length}개의 문장 수신 완료`);
+
+    // 4. MongoDB에 저장
     await Sentence.create({
       sentence: sentencesData,
     });
-    console.log("데이터베이스에 저장 완료!");
+    log("✅ 데이터베이스 저장 완료");
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+    log(`🎉 스크립트 성공적으로 완료 (소요시간: ${elapsed}s)`);
+    process.exit(0);
   } catch (error) {
-    console.error("fetchSentences 오류:", error);
+    logError("스크립트 실행 중 오류 발생", error);
+    process.exit(1);
   } finally {
     await mongoose.disconnect();
-    console.log("MongoDB 연결 해제됨");
+    log("🔌 MongoDB 연결 해제");
   }
 }
 
