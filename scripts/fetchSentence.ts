@@ -43,7 +43,31 @@ async function fetchSentences(): Promise<void> {
     await mongoose.connect(process.env.MONGO_URI);
     log("✅ MongoDB 연결됨");
 
-    // 3. OpenAI API 호출
+    // 3. 어제자 문장 조회
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStart = new Date(yesterday.setHours(0, 0, 0, 0));
+    const yesterdayEnd = new Date(yesterday.setHours(23, 59, 59, 999));
+
+    const yesterdaySentences = await Sentence.findOne({
+      date: {
+        $gte: yesterdayStart,
+        $lte: yesterdayEnd,
+      },
+    }).lean();
+
+    let excludeSentencesText = "";
+    if (yesterdaySentences && yesterdaySentences.sentence) {
+      const sentenceList = yesterdaySentences.sentence
+        .map((s: any) => `- ${s.en}`)
+        .join("\n");
+      excludeSentencesText = `\n\n**IMPORTANT: Do NOT generate any of the following sentences from yesterday:**\n${sentenceList}\n`;
+      log(`📋 어제자 문장 ${yesterdaySentences.sentence.length}개 조회 완료`);
+    } else {
+      log("📋 어제자 문장 없음");
+    }
+
+    // 4. OpenAI API 호출
     const prompt = `
 You are an English tutor who understands natural, real-life spoken English used by native speakers.
 
@@ -51,18 +75,18 @@ Please generate 5 unique English sentences for daily English practice, following
 
 1. Difficulty level must be CEFR B1–B2.
 2. Sentences must sound natural and be immediately usable in everyday conversation.
-3. Each sentence must include at least one commonly used, essential spoken expression or core vocabulary item.
-4. Grammar usage must vary across the 5 sentences, such as:
+3. Each sentence must be 60 characters or less in length.
+4. Each sentence must include at least one commonly used, essential spoken expression or core vocabulary item.
+5. Grammar usage must vary across the 5 sentences, such as:
    - different tenses
    - modal verbs
    - conditionals
    - comparisons
    - cause-and-effect expressions
    - opinions or preferences
-5. Avoid textbook-style language. Use the tone, rhythm, and phrasing that native speakers actually use.
-6. Focus on real-life situations such as travel, daily life, work, relationships, and emotional expression.
-7. The overall goal is that consistent study of these sentences enables clear self-expression abroad.
-
+6. Avoid textbook-style language. Use the tone, rhythm, and phrasing that native speakers actually use.
+7. Focus on real-life situations such as travel, daily life, work, relationships, and emotional expression.
+8. The overall goal is that consistent study of these sentences enables clear self-expression abroad.${excludeSentencesText}
 For EACH sentence:
 - Provide a natural Korean translation.
 - Select exactly 2 key words or expressions that are essential in real conversation.
@@ -108,7 +132,7 @@ The format MUST be exactly like the example below (no extra text):
 
     log(`✅ ${sentencesData.length}개의 문장 수신 완료`);
 
-    // 4. MongoDB에 저장
+    // 5. MongoDB에 저장
     await Sentence.create({
       sentence: sentencesData,
     });

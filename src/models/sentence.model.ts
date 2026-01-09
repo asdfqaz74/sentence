@@ -28,7 +28,5 @@ const SentenceSchema: Schema = new Schema({
   },
 });
 
-export const Sentence: Model<ISentence> = mongoose.model<ISentence>(
-  "Sentence",
-  SentenceSchema
-);
+export const Sentence: Model<ISentenceDocument> =
+  mongoose.model<ISentenceDocument>("Sentence", SentenceSchema);
