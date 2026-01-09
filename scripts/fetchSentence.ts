@@ -43,26 +43,16 @@ async function fetchSentences(): Promise<void> {
     await mongoose.connect(process.env.MONGO_URI);
     log("✅ MongoDB 연결됨");
 
-    // 3. 어제자 문장 조회
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStart = new Date(yesterday.setHours(0, 0, 0, 0));
-    const yesterdayEnd = new Date(yesterday.setHours(23, 59, 59, 999));
-
-    const yesterdaySentences = await Sentence.findOne({
-      date: {
-        $gte: yesterdayStart,
-        $lte: yesterdayEnd,
-      },
-    }).lean();
+    // 3. 최신 문장(어제자) 조회
+    const latest = await Sentence.findOne().sort({ date: -1 });
 
     let excludeSentencesText = "";
-    if (yesterdaySentences && yesterdaySentences.sentence) {
-      const sentenceList = yesterdaySentences.sentence
+    if (latest && latest.sentence) {
+      const sentenceList = latest.sentence
         .map((s: any) => `- ${s.en}`)
         .join("\n");
       excludeSentencesText = `\n\n**IMPORTANT: Do NOT generate any of the following sentences from yesterday:**\n${sentenceList}\n`;
-      log(`📋 어제자 문장 ${yesterdaySentences.sentence.length}개 조회 완료`);
+      log(`📋 어제자 문장 ${latest.sentence.length}개 조회 완료`);
     } else {
       log("📋 어제자 문장 없음");
     }
