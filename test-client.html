@@ -3,41 +3,53 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>실시간 사용자 수 테스트</title>
+    <title>Socket.IO 테스트 - 실시간 사용자 수 & 랜덤 코멘트</title>
     <style>
+      * {
+        box-sizing: border-box;
+      }
       body {
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
+        min-height: 100vh;
         margin: 0;
+        padding: 20px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       }
-      .container {
+      .wrapper {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .card {
         background: white;
-        padding: 40px;
+        padding: 30px;
         border-radius: 20px;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        text-align: center;
-        min-width: 300px;
+        margin-bottom: 20px;
       }
       h1 {
         color: #333;
-        margin-bottom: 10px;
+        margin: 0 0 10px 0;
+        font-size: 24px;
       }
+      h2 {
+        color: #555;
+        margin: 0 0 15px 0;
+        font-size: 18px;
+      }
+
+      /* 접속자 수 */
       .user-count {
         font-size: 72px;
         font-weight: bold;
         color: #667eea;
-        margin: 20px 0;
+        margin: 10px 0;
       }
       .status {
-        padding: 10px 20px;
+        padding: 8px 16px;
         border-radius: 25px;
         display: inline-block;
-        margin-top: 20px;
         font-weight: bold;
+        font-size: 14px;
       }
       .connected {
         background: #10b981;
@@ -47,21 +59,203 @@
         background: #ef4444;
         color: white;
       }
+
+      /* 랜덤 코멘트 */
+      .comment-box {
+        background: #f8f9fa;
+        border-left: 4px solid #667eea;
+        padding: 20px;
+        border-radius: 0 10px 10px 0;
+        margin: 15px 0;
+        min-height: 80px;
+      }
+      .comment-content {
+        font-size: 18px;
+        color: #333;
+        line-height: 1.6;
+      }
+      .comment-date {
+        font-size: 12px;
+        color: #888;
+        margin-top: 10px;
+      }
+      .no-comment {
+        color: #aaa;
+        font-style: italic;
+      }
+
+      /* 로그 */
+      .log-container {
+        background: #1e1e1e;
+        border-radius: 10px;
+        padding: 15px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .log-entry {
+        font-family: "Consolas", monospace;
+        font-size: 12px;
+        color: #ddd;
+        margin: 5px 0;
+        padding: 5px;
+        border-radius: 4px;
+      }
+      .log-entry.connect {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+      }
+      .log-entry.disconnect {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+      }
+      .log-entry.comment {
+        background: rgba(102, 126, 234, 0.2);
+        color: #a5b4fc;
+      }
+      .log-entry.users {
+        background: rgba(251, 191, 36, 0.2);
+        color: #fbbf24;
+      }
+
+      /* 통계 */
+      .stats {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .stat-item {
+        text-align: center;
+      }
+      .stat-value {
+        font-size: 28px;
+        font-weight: bold;
+        color: #667eea;
+      }
+      .stat-label {
+        font-size: 12px;
+        color: #888;
+      }
+
       .info {
-        margin-top: 20px;
+        margin-top: 15px;
         color: #666;
+        font-size: 13px;
+      }
+
+      /* 코멘트 작성 폼 */
+      .comment-form {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+      }
+      .comment-input {
+        flex: 1;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
         font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .comment-input:focus {
+        border-color: #667eea;
+      }
+      .submit-btn {
+        padding: 12px 24px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .submit-btn:hover {
+        background: #5567d5;
+      }
+      .submit-btn:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+      }
+      .submit-result {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 13px;
+        display: none;
+      }
+      .submit-result.success {
+        display: block;
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .submit-result.error {
+        display: block;
+        background: #fee2e2;
+        color: #991b1b;
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <h1>🌐 실시간 접속자 수</h1>
-      <div class="user-count" id="userCount">-</div>
-      <div class="status disconnected" id="status">연결 중...</div>
-      <div class="info">
-        <p>웹소켓을 통해 실시간으로 업데이트됩니다</p>
-        <p>여러 탭을 열어 테스트해보세요!</p>
+    <div class="wrapper">
+      <!-- 접속자 수 카드 -->
+      <div class="card" style="text-align: center">
+        <h1>🌐 실시간 접속자 수</h1>
+        <div class="user-count" id="userCount">-</div>
+        <div class="status disconnected" id="status">연결 중...</div>
+      </div>
+
+      <!-- 코멘트 작성 카드 -->
+      <div class="card">
+        <h2>✏️ 코멘트 작성하기</h2>
+        <form id="commentForm" class="comment-form">
+          <input
+            type="text"
+            id="commentInput"
+            class="comment-input"
+            placeholder="코멘트를 입력하세요..."
+            maxlength="200"
+            required
+          />
+          <button type="submit" class="submit-btn" id="submitBtn">등록</button>
+        </form>
+        <div id="submitResult" class="submit-result"></div>
+      </div>
+
+      <!-- 랜덤 코멘트 카드 -->
+      <div class="card">
+        <h2>💬 실시간 랜덤 코멘트 (3초마다 갱신)</h2>
+        <div class="comment-box">
+          <div class="comment-content" id="commentContent">
+            <span class="no-comment">코멘트를 기다리는 중...</span>
+          </div>
+          <div class="comment-date" id="commentDate"></div>
+        </div>
+        <div class="stats">
+          <div class="stat-item">
+            <div class="stat-value" id="commentCount">0</div>
+            <div class="stat-label">받은 코멘트 수</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="lastUpdate">-</div>
+            <div class="stat-label">마지막 업데이트</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 이벤트 로그 카드 -->
+      <div class="card">
+        <h2>📋 이벤트 로그</h2>
+        <div class="log-container" id="logContainer">
+          <div class="log-entry">소켓 이벤트가 여기에 표시됩니다...</div>
+        </div>
+      </div>
+
+      <div class="info" style="text-align: center; color: white">
+        <p>💡 여러 탭을 열어 접속자 수 변화를 확인해보세요!</p>
+        <p>서버 주소: <strong>http://localhost:3000</strong></p>
       </div>
     </div>
 
@@ -69,42 +263,149 @@
     <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
     <script>
       // Socket.IO 서버 연결
-      const socket = io("https://sentence.team-maker.xyz");
+      const socket = io("http://localhost:3002");
 
-      const userCountElement = document.getElementById("userCount");
-      const statusElement = document.getElementById("status");
+      // DOM 요소
+      const userCountEl = document.getElementById("userCount");
+      const statusEl = document.getElementById("status");
+      const commentContentEl = document.getElementById("commentContent");
+      const commentDateEl = document.getElementById("commentDate");
+      const commentCountEl = document.getElementById("commentCount");
+      const lastUpdateEl = document.getElementById("lastUpdate");
+      const logContainer = document.getElementById("logContainer");
+
+      // 통계
+      let receivedComments = 0;
+
+      // 로그 추가 함수
+      function addLog(message, type = "") {
+        const entry = document.createElement("div");
+        entry.className = `log-entry ${type}`;
+        const time = new Date().toLocaleTimeString("ko-KR");
+        entry.textContent = `[${time}] ${message}`;
+        logContainer.insertBefore(entry, logContainer.firstChild);
+
+        // 최대 50개 로그만 유지
+        while (logContainer.children.length > 50) {
+          logContainer.removeChild(logContainer.lastChild);
+        }
+      }
 
       // 연결 성공
       socket.on("connect", () => {
-        // console.log("✅ WebSocket 연결 성공!");
-        statusElement.textContent = "🟢 연결됨";
-        statusElement.className = "status connected";
+        console.log("✅ WebSocket 연결 성공!");
+        statusEl.textContent = "🟢 연결됨";
+        statusEl.className = "status connected";
+        addLog(`소켓 연결됨 (ID: ${socket.id})`, "connect");
       });
 
-      // 실시간 사용자 수 업데이트 수신
+      // 실시간 사용자 수 업데이트
       socket.on("activeUsers", (data) => {
         console.log("👥 현재 접속자 수:", data.count);
-        userCountElement.textContent = data.count;
+        userCountEl.textContent = data.count;
+        addLog(`접속자 수 업데이트: ${data.count}명`, "users");
+      });
+
+      // 랜덤 코멘트 수신
+      socket.on("random_comment", (data) => {
+        console.log("💬 랜덤 코멘트:", data);
+        receivedComments++;
+
+        // 코멘트 표시
+        if (data && data.content) {
+          commentContentEl.textContent = data.content;
+          commentContentEl.classList.remove("no-comment");
+          commentDateEl.textContent = data.date
+            ? `작성 시간: ${data.date}`
+            : "";
+        } else {
+          commentContentEl.innerHTML =
+            '<span class="no-comment">코멘트 데이터 없음</span>';
+          commentDateEl.textContent = "";
+        }
+
+        // 통계 업데이트
+        commentCountEl.textContent = receivedComments;
+        lastUpdateEl.textContent = new Date().toLocaleTimeString("ko-KR");
+
+        addLog(
+          `코멘트 수신: "${data?.content?.substring(0, 30) || "없음"}..."`,
+          "comment"
+        );
       });
 
       // 연결 해제
       socket.on("disconnect", () => {
-        // console.log("❌ WebSocket 연결 끊김");
-        statusElement.textContent = "🔴 연결 끊김";
-        statusElement.className = "status disconnected";
+        console.log("❌ WebSocket 연결 끊김");
+        statusEl.textContent = "🔴 연결 끊김";
+        statusEl.className = "status disconnected";
+        addLog("소켓 연결 해제됨", "disconnect");
       });
 
       // 에러 처리
       socket.on("connect_error", (error) => {
-        // console.error("❌ 연결 오류:", error);
-        statusElement.textContent = "⚠️ 연결 실패";
-        statusElement.className = "status disconnected";
+        console.error("❌ 연결 오류:", error);
+        statusEl.textContent = "⚠️ 연결 실패";
+        statusEl.className = "status disconnected";
+        addLog(`연결 오류: ${error.message}`, "disconnect");
       });
 
-      // 사용자 수 수동 요청 (선택사항)
-      function requestUserCount() {
-        socket.emit("getUserCount");
-      }
+      // 초기 로그
+      addLog("소켓 클라이언트 초기화됨");
+
+      // ========== 코멘트 작성 기능 ==========
+      const commentForm = document.getElementById("commentForm");
+      const commentInput = document.getElementById("commentInput");
+      const submitBtn = document.getElementById("submitBtn");
+      const submitResult = document.getElementById("submitResult");
+
+      commentForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const content = commentInput.value.trim();
+        if (!content) return;
+
+        // 버튼 비활성화
+        submitBtn.disabled = true;
+        submitBtn.textContent = "등록 중...";
+
+        try {
+          const response = await fetch("http://localhost:3002/api/comment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ content }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            // 성공
+            submitResult.textContent = `✅ ${data.message}`;
+            submitResult.className = "submit-result success";
+            commentInput.value = "";
+            addLog(`코멘트 작성: "${content.substring(0, 30)}..."`, "connect");
+          } else {
+            // 실패
+            submitResult.textContent = `❌ ${data.error}`;
+            submitResult.className = "submit-result error";
+            addLog(`코멘트 작성 실패: ${data.error}`, "disconnect");
+          }
+        } catch (error) {
+          submitResult.textContent = `❌ 서버 연결 실패`;
+          submitResult.className = "submit-result error";
+          addLog(`코멘트 작성 오류: ${error.message}`, "disconnect");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "등록";
+
+          // 3초 후 결과 메시지 숨기기
+          setTimeout(() => {
+            submitResult.className = "submit-result";
+          }, 3000);
+        }
+      });
     </script>
   </body>
 </html>
