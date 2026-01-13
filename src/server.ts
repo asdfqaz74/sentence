@@ -39,9 +39,9 @@ io.on("connection", (socket) => {
   // 연결 해제
   socket.on("disconnect", () => {
     activeUsers--;
-    console.log(
-      `❌ 사용자 연결 해제됨 (ID: ${socket.id}) | 현재 접속자: ${activeUsers}명`
-    );
+    // console.log(
+    //   `❌ 사용자 연결 해제됨 (ID: ${socket.id}) | 현재 접속자: ${activeUsers}명`
+    // );
 
     // 모든 클라이언트에게 업데이트된 사용자 수 전송
     io.emit("activeUsers", { count: activeUsers });
@@ -55,8 +55,8 @@ io.on("connection", (socket) => {
 
 // HTTP 서버 시작 (Express + Socket.IO)
 httpServer.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📡 WebSocket server is ready`);
+  console.log(`🚀 서버 ${PORT}번에서 실행 중`);
+  console.log(`📡 WebSocket 서버 준비 완료`);
 });
 
 export { io };
